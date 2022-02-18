@@ -117,7 +117,7 @@ DS_300B1:admin> bannershow
                                       ATTENTION:
 It is recommended that you change the default passwords for all the switch accounts.
 Refer to the product release notes and administrators guide if you need further information.
-============================================================================================
+=================================================================================
 
 DS_300B1:admin> bannerset "Hi"
 DS_300B1:admin> bannershow
@@ -157,7 +157,7 @@ alishow
 #------------------------------------------------------------------------------
 DS_300B1:admin> defzone --noaccess
 You are about to set the Default Zone access mode to No Access
-Do you want to set the Default Zone access mode to No Access ? (yes, y, no, n):                                                                [no] yes
+Do you want to set the Default Zone access mode to No Access ? (yes, y, no, n):[no] yes
 
 #------------------------------------------------------------------------------
 #Windows
