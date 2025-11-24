@@ -1,0 +1,39 @@
+---
+- name: run ONTAP gather facts for job schedule cron info
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - cluster/schedules 
+      #- job_schedule_cron_info 
+    #fields:
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: job_schedule_info
+
+- name: Output selected information for job schedule information into "{{ output_f1_name }}" JSON format
+  copy:
+    content: "{{ job_schedule_info | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f1_name }}_{{ storage.hostname }}.json"
+
+- name: Retrieve extra information for job schedule information
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'job/schedule'
+    verb: 'GET'
+    params:
+      #fields: "vserver,type,description,name,cluster"
+      fields: "type,description,name,cluster"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: job_schedule_info_extra
+
+- name: Write extra schedule information of specified volume into "{{ output_f2_name }}" JSON file
+  copy:
+    content: "{{ job_schedule_info_extra| to_json }}"
+    dest: "{{ output_dir }}/{{ output_f2_name }}_{{ storage.hostname }}.json"
+

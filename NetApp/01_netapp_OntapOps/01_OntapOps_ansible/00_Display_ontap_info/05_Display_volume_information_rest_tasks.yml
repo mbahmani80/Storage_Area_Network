@@ -1,0 +1,191 @@
+---
+- name: run ONTAP gather facts for storage/volumes (Selected fields)
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - storage/volumes
+    fields:
+      - '*'
+      #- 'name'
+      #- 'uuid'
+      #- 'state'
+      #- 'type'
+      #- 'style'
+      #- 'size'
+      #- 'comment'
+      #- 'create_time'
+      #- 'language'
+      #- 'snapshot_policy.name'  # Nested field
+      #- 'nas.export_policy.name' # Nested field
+      #- 'svm.name'  # Nested field
+      #- 'svm.uuid'  # Nested field
+      #- 'clone.is_flexclone'  # Nested field
+      #- 'snapmirror.is_protected'  # Nested field
+      #- 'aggregates.name'  # Nested field
+      #- 'aggregates.uuid'  # Nested field
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: storage_volumes_info_selected_fields
+
+- name: Display volume information
+  debug:
+    msg: |
+      vol_name: {{ record.name }}
+      vol_uuid: {{ record.uuid }}
+      vol_state: {{ record.state | default('N/A') }}
+      vol_type: {{ record.type | default('N/A') }}
+      vol_style: {{ record.style | default('N/A') }}
+      vol_size: {{ record.size | default('N/A') }}
+      vol_comment: {{ record.comment | default('N/A') }}
+      vol_creation_time: {{ record.create_time | default('N/A') }}
+      vol_language: {{ record.language | default('N/A') }}
+      vol_snapshot_policy: {{ record.snapshot_policy.name | default('N/A') }}
+      vol_nas_export_policy: {{ record.nas.export_policy.name | default('N/A') }}
+      vol_svm_name: {{ record.svm.name | default('N/A') }}
+      vol_svm_uuid: {{ record.svm.uuid | default('N/A') }}
+      vol_is_flexclone: {{ record.clone.is_flexclone | default('N/A') }}
+      vol_snapmirror_protected: {{ record.snapmirror.is_protected | default('N/A') }}
+      vol_ggregates_name: {{ record.aggregates[0].name | default('N/A') }}
+      vol_aggregates_uuid: {{ record.aggregates[0].uuid | default('N/A') }}
+  with_items: "{{ storage_volumes_info_selected_fields.ontap_info['storage/volumes'].records }}"
+  when: record.name is defined
+  loop_control:
+    loop_var: record
+
+- name: Output selected information for volume in JSON format
+  copy:
+    content: "{{ storage_volumes_info_selected_fields | to_json }}"
+    dest: "json/{{ output_f_name }}_{{ storage.hostname }}.json"
+
+#- name: Display volume information (All fields)
+#  debug:
+#    msg: "{{ storage_volumes_info_selected_fields  }}"
+
+#{
+#  "ontap_info": {
+#    "storage/volumes": {
+#      "records": [
+#        {
+#          "uuid": "0029cd2e-2dc3-11ec-951d-00a0989a143a",
+#          "comment": "",
+#          "create_time": "2021-10-15T16:20:08+02:00",
+#          "language": "c",
+#          "name": "sv_aha_vserver05_aha_apex0005_db11",
+#          "size": 4042006822912,
+#          "state": "online",
+#          "style": "flexvol",
+#          "tiering": {
+#            "policy": "snapshot_only",
+#            "min_cooling_days": 2
+#          },
+#          "cloud_retrieval_policy": "default",
+#          "type": "dp",
+#          "aggregates": [
+#            {
+#              "name": "sodbackup01_04_backup01",
+#              "uuid": "09ffaf8b-57fe-4352-9880-09d2dd5fb2c0"
+#            }
+#          ],
+#          "clone": {
+#            "is_flexclone": false
+#          },
+#          "nas": {
+#            "export_policy": {
+#              "name": "default"
+#            }
+#          },
+#          "snapshot_policy": {
+#            "name": "none"
+#          },
+#          "svm": {
+#            "name": "snapmirror_aha_vserver_dc01",
+#            "uuid": "b5862540-fde4-11e8-817e-00a0989ab9d0",
+#            "_links": {
+#              "self": {
+#                "href": "/api/svm/svms/b5862540-fde4-11e8-817e-00a0989ab9d0"
+#              }
+#            }
+#          },
+#          "space": {
+#            "size": 4042006822912,
+#            "available": 124877963264,
+#            "used": 3917128859648
+#          },
+#          "snapmirror": {
+#            "is_protected": false
+#          },
+#          "metric": {
+#            "timestamp": "2024-11-28T13:00:15Z",
+#            "duration": "PT15S",
+#            "status": "ok",
+#            "latency": {
+#              "other": 0,
+#              "total": 0,
+#              "read": 0,
+#              "write": 0
+#            },
+#            "iops": {
+#              "read": 0,
+#              "write": 0,
+#              "other": 0,
+#              "total": 0
+#            },
+#            "throughput": {
+#              "read": 0,
+#              "write": 0,
+#              "other": 0,
+#              "total": 0
+#            },
+#            "cloud": {
+#              "timestamp": "2024-11-28T13:00:15Z",
+#              "status": "ok",
+#              "duration": "PT15S",
+#              "iops": {
+#                "read": 0,
+#                "write": 0,
+#                "other": 0,
+#                "total": 0
+#              },
+#              "latency": {
+#                "read": 0,
+#                "write": 0,
+#                "other": 0,
+#                "total": 0
+#              }
+#            }
+#          },
+#          "analytics": {
+#            "state": "off"
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/storage/volumes/0029cd2e-2dc3-11ec-951d-00a0989a143a"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "00be6cd2-2a8f-11ec-951d-00a0989a143a",
+#          "comment": "",
+#          "create_time": "2021-10-11T14:30:22+02:00",
+#          "language": "c",
+#          "name": "sv_age_hana_vserver02_GT1_data",
+#          "size": 859268186112,
+#          "state": "online",
+#          "style": "flexvol",
+#...
+#     ],
+#      "num_records": 447,
+#      "_links": {
+#        "self": {
+#          "href": "/api/storage/volumes?max_records=1024&fields=%2A"
+#        }
+#      }
+#    }
+#  },
+#  "changed": false,
+#  "failed": false
+#}
+#

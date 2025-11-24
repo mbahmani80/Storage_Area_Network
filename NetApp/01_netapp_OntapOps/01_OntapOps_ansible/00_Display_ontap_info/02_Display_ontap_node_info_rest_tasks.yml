@@ -1,0 +1,566 @@
+---
+- name: Gather ONTAP facts for cluster_node_info
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - cluster_node_info
+    fields:
+      - '*'
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: cluster_node_info
+
+- name: Extract version numbers
+  set_fact:
+    version_numbers: "{{
+        cluster_node_info.ontap_info['cluster/nodes'].records
+        | map(attribute='version.full')
+        | map('regex_replace', '^NetApp Release ', '')
+        | map('split', ':')
+        | map(attribute=0) }}"
+
+- name: Display cluster node information
+  debug:
+    msg: |
+      stg_name: {{ record.name | default('N/A') }}
+      stg_uuid: {{ record.uuid | default('N/A') }}
+      stg_model: {{ record.model | default('N/A') }}
+      stg_serial_number: {{ record.serial_number | default('N/A') }}
+      stg_system_id: {{ record.system_id | default('N/A') }}
+      stg_storage_configuration: {{ record.storage_configuration | default('N/A') }}
+      stg_location: {{ record.location | default('N/A') }}
+      stg_version: {{ version_numbers }}
+  with_items: "{{ cluster_node_info.ontap_info['cluster/nodes'].records }}"
+  loop_control:
+    loop_var: record
+
+- name: Output cluster node information in JSON format
+  copy:
+    content: "{{ cluster_node_info | to_json }}"
+    dest: "json/{{ output_f_name }}_{{ storage.hostname }}.json"
+
+
+#{
+#  "ontap_info": {
+#    "cluster/nodes": {
+#      "records": [
+#        {
+#          "uuid": "36f9ccac-d006-11ee-9e91-00a098c72d23",
+#          "name": "pndh-sodbackup01-03",
+#          "serial_number": "721714000707",
+#          "location": "",
+#          "model": "FAS9000",
+#          "system_id": "0537068937",
+#          "version": {
+#            "full": "NetApp Release 9.11.1P11: Wed Aug 09 15:18:59 UTC 2023",
+#            "generation": 9,
+#            "major": 11,
+#            "minor": 1
+#          },
+#          "date": "2024-11-26T13:28:11+01:00",
+#          "uptime": 1537691,
+#          "state": "up",
+#          "membership": "member",
+#          "management_interfaces": [
+#            {
+#              "uuid": "663d5ad2-4a6c-11ef-b04d-00a098c72d23",
+#              "name": "pndh-sodbackup01-03_mgmt1",
+#              "ip": {
+#                "address": "195.227.206.37"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/663d5ad2-4a6c-11ef-b04d-00a098c72d23"
+#                }
+#              }
+#            }
+#          ],
+#          "cluster_interfaces": [
+#            {
+#              "uuid": "663cfa9a-4a6c-11ef-b04d-00a098c72d23",
+#              "name": "pndh-sodbackup01-03_clus1",
+#              "ip": {
+#                "address": "169.254.3.1"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/663cfa9a-4a6c-11ef-b04d-00a098c72d23"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "663d21bf-4a6c-11ef-b04d-00a098c72d23",
+#              "name": "pndh-sodbackup01-03_clus2",
+#              "ip": {
+#                "address": "169.254.3.2"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/663d21bf-4a6c-11ef-b04d-00a098c72d23"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "663d363e-4a6c-11ef-b04d-00a098c72d23",
+#              "name": "pndh-sodbackup01-03_clus3",
+#              "ip": {
+#                "address": "169.254.3.3"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/663d363e-4a6c-11ef-b04d-00a098c72d23"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "663d490c-4a6c-11ef-b04d-00a098c72d23",
+#              "name": "pndh-sodbackup01-03_clus4",
+#              "ip": {
+#                "address": "169.254.3.4"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/663d490c-4a6c-11ef-b04d-00a098c72d23"
+#                }
+#              }
+#            }
+#          ],
+#          "controller": {
+#            "over_temperature": "normal"
+#          },
+#          "ha": {
+#            "enabled": true,
+#            "auto_giveback": true,
+#            "partners": [
+#              {
+#                "uuid": "892e54b6-d006-11ee-9093-00a098c72d6f",
+#                "name": "pndh-sodbackup01-04"
+#              }
+#            ],
+#            "giveback": {
+#              "state": "nothing_to_giveback"
+#            },
+#            "takeover": {
+#              "state": "not_attempted"
+#            },
+#            "ports": [
+#              {
+#                "number": 0,
+#                "state": "active"
+#              }
+#            ]
+#          },
+#          "service_processor": {
+#            "dhcp_enabled": false,
+#            "state": "online",
+#            "mac_address": "00:a0:98:c7:2d:25",
+#            "firmware_version": "4.11P1",
+#            "link_status": "up",
+#            "ipv4_interface": {
+#              "address": "100.98.17.96",
+#              "netmask": "255.255.248.0",
+#              "gateway": "100.98.16.1"
+#            }
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/cluster/nodes/36f9ccac-d006-11ee-9e91-00a098c72d23"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "7ea5e2f2-bffb-11e8-b81b-00a0989ab9d0",
+#          "name": "pndh-sodbackup01-01",
+#          "serial_number": "211544000415",
+#          "location": "DCHH01_B14",
+#          "model": "FAS8060",
+#          "system_id": "0536983452",
+#          "version": {
+#            "full": "NetApp Release 9.8P10: Fri Feb 04 19:51:21 UTC 2022",
+#            "generation": 9,
+#            "major": 8,
+#            "minor": 0
+#          },
+#          "date": "2024-11-26T13:28:12+01:00",
+#          "uptime": 85951196,
+#          "state": "up",
+#          "membership": "member",
+#          "management_interfaces": [
+#            {
+#              "uuid": "9bedee11-d820-11e8-83f5-00a0989ab9d0",
+#              "name": "pndh-sodbackup01-01_mgmt1",
+#              "ip": {
+#                "address": "195.227.206.45"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/9bedee11-d820-11e8-83f5-00a0989ab9d0"
+#                }
+#              }
+#            }
+#          ],
+#          "cluster_interfaces": [
+#            {
+#              "uuid": "9bee0f2c-d820-11e8-83f5-00a0989ab9d0",
+#              "name": "pndh-sodbackup01-01_clus1",
+#              "ip": {
+#                "address": "169.254.1.1"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/9bee0f2c-d820-11e8-83f5-00a0989ab9d0"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "9bee0767-d820-11e8-83f5-00a0989ab9d0",
+#              "name": "pndh-sodbackup01-01_clus2",
+#              "ip": {
+#                "address": "169.254.1.2"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/9bee0767-d820-11e8-83f5-00a0989ab9d0"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "9bedff62-d820-11e8-83f5-00a0989ab9d0",
+#              "name": "pndh-sodbackup01-01_clus3",
+#              "ip": {
+#                "address": "169.254.1.3"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/9bedff62-d820-11e8-83f5-00a0989ab9d0"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "9bedf6e8-d820-11e8-83f5-00a0989ab9d0",
+#              "name": "pndh-sodbackup01-01_clus4",
+#              "ip": {
+#                "address": "169.254.1.4"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/9bedf6e8-d820-11e8-83f5-00a0989ab9d0"
+#                }
+#              }
+#            }
+#          ],
+#          "controller": {
+#            "over_temperature": "normal"
+#          },
+#          "ha": {
+#            "enabled": true,
+#            "auto_giveback": true,
+#            "partners": [
+#              {
+#                "uuid": "7f9c862f-bffb-11e8-8e0a-00a0989a143a",
+#                "name": "pndh-sodbackup01-02"
+#              }
+#            ],
+#            "giveback": {
+#              "state": "nothing_to_giveback"
+#            },
+#            "takeover": {
+#              "state": "not_attempted"
+#            },
+#            "ports": [
+#              {
+#                "number": 0,
+#                "state": "active"
+#              },
+#              {
+#                "number": 1,
+#                "state": "active"
+#              }
+#            ]
+#          },
+#          "service_processor": {
+#            "dhcp_enabled": false,
+#            "state": "online",
+#            "mac_address": "00:a0:98:9a:b9:d1",
+#            "firmware_version": "3.11",
+#            "link_status": "up",
+#            "ipv4_interface": {
+#              "address": "62.40.14.165",
+#              "netmask": "255.255.255.128",
+#              "gateway": "62.40.14.129"
+#            }
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/cluster/nodes/7ea5e2f2-bffb-11e8-b81b-00a0989ab9d0"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "7f9c862f-bffb-11e8-8e0a-00a0989a143a",
+#          "name": "pndh-sodbackup01-02",
+#          "serial_number": "211544000416",
+#          "location": "DCHH01_B14",
+#          "model": "FAS8060",
+#          "system_id": "0536982220",
+#          "version": {
+#            "full": "NetApp Release 9.8P10: Fri Feb 04 19:51:21 UTC 2022",
+#            "generation": 9,
+#            "major": 8,
+#            "minor": 0
+#          },
+#          "date": "2024-11-26T13:28:12+01:00",
+#          "uptime": 85950048,
+#          "state": "up",
+#          "membership": "member",
+#          "management_interfaces": [
+#            {
+#              "uuid": "79919d30-d821-11e8-bbec-00a0989a143a",
+#              "name": "pndh-sodbackup01-02_mgmt1",
+#              "ip": {
+#                "address": "195.227.206.46"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/79919d30-d821-11e8-bbec-00a0989a143a"
+#                }
+#              }
+#            }
+#          ],
+#          "cluster_interfaces": [
+#            {
+#              "uuid": "799177e9-d821-11e8-bbec-00a0989a143a",
+#              "name": "pndh-sodbackup01-02_clus1",
+#              "ip": {
+#                "address": "169.254.2.1"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/799177e9-d821-11e8-bbec-00a0989a143a"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "7991839f-d821-11e8-bbec-00a0989a143a",
+#              "name": "pndh-sodbackup01-02_clus2",
+#              "ip": {
+#                "address": "169.254.2.2"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/7991839f-d821-11e8-bbec-00a0989a143a"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "79918be4-d821-11e8-bbec-00a0989a143a",
+#              "name": "pndh-sodbackup01-02_clus3",
+#              "ip": {
+#                "address": "169.254.2.3"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/79918be4-d821-11e8-bbec-00a0989a143a"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "79919400-d821-11e8-bbec-00a0989a143a",
+#              "name": "pndh-sodbackup01-02_clus4",
+#              "ip": {
+#                "address": "169.254.2.4"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/79919400-d821-11e8-bbec-00a0989a143a"
+#                }
+#              }
+#            }
+#          ],
+#          "controller": {
+#            "over_temperature": "normal"
+#          },
+#          "ha": {
+#            "enabled": true,
+#            "auto_giveback": true,
+#            "partners": [
+#              {
+#                "uuid": "7ea5e2f2-bffb-11e8-b81b-00a0989ab9d0",
+#                "name": "pndh-sodbackup01-01"
+#              }
+#            ],
+#            "giveback": {
+#              "state": "nothing_to_giveback"
+#            },
+#            "takeover": {
+#              "state": "not_attempted"
+#            },
+#            "ports": [
+#              {
+#                "number": 0,
+#                "state": "active"
+#              },
+#              {
+#                "number": 1,
+#                "state": "active"
+#              }
+#            ]
+#          },
+#          "service_processor": {
+#            "dhcp_enabled": false,
+#            "state": "online",
+#            "mac_address": "00:a0:98:9a:14:3b",
+#            "firmware_version": "3.11",
+#            "link_status": "up",
+#            "ipv4_interface": {
+#              "address": "62.40.14.166",
+#              "netmask": "255.255.255.128",
+#              "gateway": "62.40.14.129"
+#            }
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/cluster/nodes/7f9c862f-bffb-11e8-8e0a-00a0989a143a"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "892e54b6-d006-11ee-9093-00a098c72d6f",
+#          "name": "pndh-sodbackup01-04",
+#          "serial_number": "721714000708",
+#          "location": "",
+#          "model": "FAS9000",
+#          "system_id": "0537068899",
+#          "version": {
+#            "full": "NetApp Release 9.11.1P11: Wed Aug 09 15:18:59 UTC 2023",
+#            "generation": 9,
+#            "major": 11,
+#            "minor": 1
+#          },
+#          "date": "2024-11-26T13:28:12+01:00",
+#          "uptime": 1538491,
+#          "state": "up",
+#          "membership": "member",
+#          "management_interfaces": [
+#            {
+#              "uuid": "c14e3cb2-4a6c-11ef-82b9-00a098c72d6f",
+#              "name": "pndh-sodbackup01-04_mgmt1",
+#              "ip": {
+#                "address": "195.227.206.38"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/c14e3cb2-4a6c-11ef-82b9-00a098c72d6f"
+#                }
+#              }
+#            }
+#          ],
+#          "cluster_interfaces": [
+#            {
+#              "uuid": "c14dd9a0-4a6c-11ef-82b9-00a098c72d6f",
+#              "name": "pndh-sodbackup01-04_clus1",
+#              "ip": {
+#                "address": "169.254.4.1"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/c14dd9a0-4a6c-11ef-82b9-00a098c72d6f"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "c14e01b1-4a6c-11ef-82b9-00a098c72d6f",
+#              "name": "pndh-sodbackup01-04_clus2",
+#              "ip": {
+#                "address": "169.254.4.2"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/c14e01b1-4a6c-11ef-82b9-00a098c72d6f"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "c14e175d-4a6c-11ef-82b9-00a098c72d6f",
+#              "name": "pndh-sodbackup01-04_clus3",
+#              "ip": {
+#                "address": "169.254.4.3"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/c14e175d-4a6c-11ef-82b9-00a098c72d6f"
+#                }
+#              }
+#            },
+#            {
+#              "uuid": "c14e2ac4-4a6c-11ef-82b9-00a098c72d6f",
+#              "name": "pndh-sodbackup01-04_clus4",
+#              "ip": {
+#                "address": "169.254.4.4"
+#              },
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/c14e2ac4-4a6c-11ef-82b9-00a098c72d6f"
+#                }
+#              }
+#            }
+#          ],
+#          "controller": {
+#            "over_temperature": "normal"
+#          },
+#          "ha": {
+#            "enabled": true,
+#            "auto_giveback": true,
+#            "partners": [
+#              {
+#                "uuid": "36f9ccac-d006-11ee-9e91-00a098c72d23",
+#                "name": "pndh-sodbackup01-03"
+#              }
+#            ],
+#            "giveback": {
+#              "state": "nothing_to_giveback"
+#            },
+#            "takeover": {
+#              "state": "not_attempted"
+#            },
+#            "ports": [
+#              {
+#                "number": 0,
+#                "state": "active"
+#              }
+#            ]
+#          },
+#          "service_processor": {
+#            "dhcp_enabled": false,
+#            "state": "online",
+#            "mac_address": "00:a0:98:c7:2d:71",
+#            "firmware_version": "4.11P1",
+#            "link_status": "up",
+#            "ipv4_interface": {
+#              "address": "100.98.17.97",
+#              "netmask": "255.255.248.0",
+#              "gateway": "100.98.16.1"
+#            }
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/cluster/nodes/892e54b6-d006-11ee-9093-00a098c72d6f"
+#            }
+#          }
+#        }
+#      ],
+#      "num_records": 4,
+#      "_links": {
+#        "self": {
+#          "href": "/api/cluster/nodes?max_records=1024&fields=%2A"
+#        }
+#      }
+#    }
+#  },
+#  "changed": false,
+#  "failed": false
+#}
+#

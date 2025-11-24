@@ -1,0 +1,81 @@
+---
+# gather_ontap_info.yml
+
+- name: Gather ONTAP facts for cluster_info
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - cluster
+    fields:
+#      - '*'
+      - "name"
+      - "uuid"
+      - "version.full"
+      - "management_interfaces.ip.address"
+      - "timezone.name"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: cluster_info
+
+#- name: Print cluster_info in JSON format
+#  debug:
+#    msg: "{{ cluster_info | to_json }}"
+
+
+- name: Safely extract version numbers
+  set_fact:
+    version_numbers: >-
+      {{
+        cluster_info.ontap_info['cluster']['version']['full']
+        | regex_replace('^NetApp Release ', '')
+        | regex_replace(':.*$', '')
+      }}
+
+- name: Display cluster information
+  debug:
+    msg: |
+      stg_name: {{ cluster_info.ontap_info['cluster'].name | default('N/A') }}
+      stg_uuid: {{ cluster_info.ontap_info['cluster'].uuid | default('N/A') }}
+      stg_mgmt_ip: {{ cluster_info.ontap_info['cluster'].management_interfaces[0].ip.address | default('N/A') }}
+      stg_timezone: {{ cluster_info.ontap_info['cluster'].timezone.name | default('N/A') }}
+      stg_version: {{ version_numbers }}
+
+- name: Output cluster node information in JSON format
+  copy:
+    content: "{{ cluster_info | to_json }}"
+    dest: "json/{{ output_f_name }}_{{ storage.hostname }}.json"
+
+
+
+#{
+#  "ontap_info": {
+#    "cluster": {
+#      "name": "pndh-sodbackup01",
+#      "uuid": "95743158-d820-11e8-83f5-00a0989ab9d0",
+#      "version": {
+#        "full": "NetApp Release 9.8P10: Fri Feb 04 19:51:21 UTC 2022"
+#      },
+#      "management_interfaces": [
+#        {
+#          "ip": {
+#            "address": "195.227.206.44"
+#          }
+#        }
+#      ],
+#      "timezone": {
+#        "name": "Europe/Berlin"
+#      },
+#      "_links": {
+#        "self": {
+#          "href": "/api/cluster"
+#        }
+#      }
+#    }
+#  },
+#  "changed": false,
+#  "failed": false
+#}
+#

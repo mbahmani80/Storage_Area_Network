@@ -1,0 +1,51 @@
+---
+- name: run ONTAP gather facts for cluster_node_info
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - cluster_node_info
+    fields:
+      - 'version'
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: cluster_node_info
+
+- debug:
+    var: >- 
+      cluster_node_info.ontap_info['cluster/nodes'].records
+        | map(attribute='version.full')
+        | map('split', ':')
+        | map(attribute=0) or map(attribute=1)
+
+
+- name: run ONTAP gather facts for cluster_info
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - cluster
+    fields:
+      - '*'
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: cluster_info
+
+- name: run ONTAP gather facts for storage/cluster
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - storage/cluster
+    fields:
+      - '*'
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: storage_cluster_info
+

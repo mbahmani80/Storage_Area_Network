@@ -1,0 +1,230 @@
+---
+- name: run ONTAP gather facts for svm/svms
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - svm/svms
+    fields:
+      - '*'
+#      - name
+#      - uuid
+#      - language
+#      - state
+#      - subtype
+#      - comment
+#      - "aggregates.name"
+#      - "aggregates.uuid"
+#      - "ip_interfaces.ip.address"
+#      - "ip_interfaces.name"
+#      - "cifs.allowed"
+#      - "cifs.enabled"
+#      - "fcp.allowed"
+#      - "fcp.enabled"
+#      - "iscsi.allowed"
+#      - "iscsi.enabled"
+#      - "nfs.allowed"
+#      - "nfs.enabled"
+#      - "s3.allowed"
+#      - "s3.enabled"
+#      - "nvme.allowed"
+#      - "nvme.enabled"
+#      - "snapshot_policy.name"
+#      - "ipspace.name"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: svm_info
+
+- name: Display selected information for svms
+  debug:
+    msg: |
+      svm_name: {{ record.name }}
+      svm_uuid: {{ record.uuid }}
+      svm_language: {{ record.language | default('N/A') }}
+      svm_state: {{ record.state | default('N/A') }}
+      svm_subtype: {{ record.subtype | default('N/A') }}
+      svm_comment: {{ record.comment | default('N/A') }}
+      svm_aggregates_name: {{ record.aggregates[0].name | default('N/A') }}
+      svm_aggregates_uuid: {{ record.aggregates[0].uuid | default('N/A') }}
+      svm_ip_address: {{ record.ip_interfaces[0].ip.address | default('N/A') }}
+      svm_ip_name: {{ record.ip_interfaces[0].name | default('N/A') }}
+      svm_cifs_allowed: {{ record.cifs.allowed | default('N/A') }}
+      svm_cifs_enabled: {{ record.cifs.enabled | default('N/A') }}
+      svm_fcp_allowed: {{ record.fcp.allowed | default('N/A') }}
+      svm_fcp_enabled: {{ record.fcp.enabled | default('N/A') }}
+      svm_iscsi_allowed: {{ record.iscsi.allowed | default('N/A') }}
+      svm_iscsi_enabled: {{ record.iscsi.enabled | default('N/A') }}
+      svm_nfs_allowed: {{ record.nfs.allowed | default('N/A') }}
+      svm_nfs_enabled: {{ record.nfs.enabled | default('N/A') }}
+      svm_s3_allowed: {{ record.s3.allowed | default('N/A') }}
+      svm_S3_enabled: {{ record.s3.enabled | default('N/A') }}
+      svm_nvme_allowed: {{ record.nvme.allowed | default('N/A') }}
+      svm_nvme_enabled: {{ record.nvme.enabled | default('N/A') }}
+      svm_snapshot_policy: {{ record.snapshot_policy.name | default('N/A') }}
+      svm_ipspace_name: {{ record.ipspace.name | default('N/A') }}
+  with_items: "{{ svm_info.ontap_info['svm/svms'].records }}"
+  loop_control:
+    loop_var: record
+
+- name: Output selected information for svm in JSON format
+  copy:
+    content: "{{ svm_info | to_json }}"
+    dest: "json/{{ output_f_name }}_{{ storage.hostname }}.json"
+
+
+
+
+
+
+#{
+#  "ontap_info": {
+#    "svm/svms": {
+#      "records": [
+#        {
+#          "uuid": "18af0795-4489-11ed-a578-00a0989ab9d0",
+#          "name": "snapmirror_aha_hana_vserver_dc01",
+#          "subtype": "default",
+#          "language": "c",
+#          "aggregates": [
+#            {
+#              "name": "sodbackup01_01_backup01",
+#              "uuid": "bdfb0a36-7c21-4efa-a8ff-7c5f6edd2e66"
+#            },
+#            {
+#              "name": "sodbackup01_02_backup01",
+#              "uuid": "0ead6fcf-f34a-4c4c-a303-daa22bc9938e"
+#            },
+#            {
+#              "name": "sodbackup01_03_backup01",
+#              "uuid": "acbb3952-3388-4adf-bb82-a8ec97c156f7"
+#            },
+#            {
+#              "name": "sodbackup01_04_backup01",
+#              "uuid": "09ffaf8b-57fe-4352-9880-09d2dd5fb2c0"
+#            }
+#          ],
+#          "state": "running",
+#          "comment": "",
+#          "ipspace": {
+#            "name": "Default",
+#            "uuid": "9bd7a9fe-d820-11e8-83f5-00a0989ab9d0",
+#            "_links": {
+#              "self": {
+#                "href": "/api/network/ipspaces/9bd7a9fe-d820-11e8-83f5-00a0989ab9d0"
+#              }
+#            }
+#          },
+#          "ip_interfaces": [
+#            {
+#              "uuid": "caebac1a-448a-11ed-a578-00a0989ab9d0",
+#              "name": "snapmirror_aha_hana_vserver_dc01_restore01",
+#              "ip": {
+#                "address": "172.31.69.12"
+#              },
+#              "services": [
+#                "data_core",
+#                "data_nfs",
+#                "data_fpolicy_client"
+#              ],
+#              "_links": {
+#                "self": {
+#                  "href": "/api/network/ip/interfaces/caebac1a-448a-11ed-a578-00a0989ab9d0"
+#                }
+#              }
+#            }
+#          ],
+#          "snapshot_policy": {
+#            "uuid": "9ab3dc73-d820-11e8-83f5-00a0989ab9d0",
+#            "name": "default",
+#            "_links": {
+#              "self": {
+#                "href": "/api/storage/snapshot-policies/9ab3dc73-d820-11e8-83f5-00a0989ab9d0"
+#              }
+#            }
+#          },
+#          "nsswitch": {
+#            "hosts": [
+#              "files",
+#              "dns"
+#            ],
+#            "group": [
+#              "files"
+#            ],
+#            "passwd": [
+#              "files"
+#            ],
+#            "netgroup": [
+#              "files"
+#            ],
+#            "namemap": [
+#              "files"
+#            ]
+#          },
+#          "nis": {
+#            "enabled": false
+#          },
+#          "ldap": {
+#            "enabled": false
+#          },
+#          "nfs": {
+#            "enabled": false
+#          },
+#          "cifs": {
+#            "enabled": false
+#          },
+#          "iscsi": {
+#            "enabled": false
+#          },
+#          "fcp": {
+#            "enabled": false
+#          },
+#          "nvme": {
+#            "enabled": false
+#          },
+#          "s3": {
+#            "enabled": false
+#          },
+#          "certificate": {
+#            "uuid": "20e58608-4489-11ed-8952-00a0989a143a",
+#            "_links": {
+#              "self": {
+#                "href": "/api/security/certificates/20e58608-4489-11ed-8952-00a0989a143a"
+#              }
+#            }
+#          },
+#          "aggregates_delegated": false,
+#          "retention_period": 12,
+#          "_links": {
+#            "self": {
+#              "href": "/api/svm/svms/18af0795-4489-11ed-a578-00a0989ab9d0"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "24224cfa-06f4-11ef-a578-00a0989ab9d0",
+#          "name": "snapmirror_aho_cifs_tdp_vserver_dc01",
+#          "subtype": "default",
+#          "language": "c",
+#          "aggregates": [
+#            {
+#              "name": "sodbackup01_04_backup01",
+#              "uuid": "09ffaf8b-57fe-4352-9880-09d2dd5fb2c0"
+#            },
+#            {
+#...
+#
+#     ],
+#      "num_records": 24,
+#      "_links": {
+#        "self": {
+#          "href": "/api/svm/svms?max_records=1024&fields=%2A"
+#        }
+#      }
+#    }
+#  },
+#  "changed": false,
+#  "failed": false
+#}
+#

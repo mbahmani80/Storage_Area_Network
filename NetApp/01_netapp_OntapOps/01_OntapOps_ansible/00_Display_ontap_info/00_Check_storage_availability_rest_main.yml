@@ -1,0 +1,40 @@
+#https://docs.ansible.com/ansible/latest/collections/netapp/ontap/index.html#plugins-in-netapp-ontap
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+
+  vars:
+    sub_task: "00_Check_storage_availability_rest_tasks.yml"
+    output_f_name: "00_Check_storage_availability_rest_tasks"
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    # Ensure the 'json' directory exists
+    - name: Ensure the 'json' directory exists
+      file:
+        path: json
+        state: directory
+        mode: '0755'
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: "json/{{ output_f_name }}_*.json"
+        state: absent
+
+    # Iterate over storages and conditionally run tasks
+    - name: Gather and display ONTAP Cluster info
+      include_tasks: "{{ sub_task }}"
+      when: storage.enabled
+      loop: "{{ storages }}"
+      loop_control:
+        loop_var: storage
+      no_log: true
+

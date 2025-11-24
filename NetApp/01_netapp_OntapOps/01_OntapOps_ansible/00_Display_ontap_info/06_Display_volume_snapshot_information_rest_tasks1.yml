@@ -1,0 +1,35 @@
+---
+- name: Gather ONTAP SVM information
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - svm/svms
+    fields:
+      - name
+      - uuid
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: svm_info
+
+- name: Display SVM details
+  debug:
+    msg: |
+      SVM Name: {{ svm.name }}
+      SVM UUID: {{ svm.uuid }}
+  loop: "{{ svm_info.ontap_info['svm/svms'].records }}"
+  loop_control:
+    loop_var: svm
+
+- name: Call snapshot retrieval task for each SVM
+  include_tasks: "{{ sub_task2 }}"
+  loop: "{{ svm_info.ontap_info['svm/svms'].records }}"
+  loop_control:
+    loop_var: svm
+  vars:
+    svm_name: "{{ svm.name }}"
+    svm_uuid: "{{ svm.uuid }}"
+    output_file1: "json/{{ output_f_name }}_{{ storage.hostname }}_{{ svm.name }}.json"
+

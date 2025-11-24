@@ -1,0 +1,46 @@
+#https://docs.ansible.com/ansible/latest/collections/netapp/ontap/index.html#plugins-in-netapp-ontap
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+
+  vars:
+    sub_task: "08_Display_snapmirror_info_rest_tasks.yml"
+    output_dir: json
+    output_f1_name: "08_Display_snapmirror_info_rest_tasks"
+    output_f2_name: "08_Display_snapmirror_policy_info_rest_tasks"  # Define the output file
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    # Ensure the 'json' directory exists
+    - name: Ensure the 'json' directory exists
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: '0755'
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "json/{{ output_f1_name }}_*.json"
+        - "json/{{ output_f2_name }}_*.json"
+
+
+    # Iterate over storages and conditionally run tasks
+    - name: Perform tasks for each storage
+      include_tasks: "{{ sub_task }}"
+      when: storage.enabled
+      loop: "{{ storages }}"
+      loop_control:
+        loop_var: storage
+      no_log: true
+

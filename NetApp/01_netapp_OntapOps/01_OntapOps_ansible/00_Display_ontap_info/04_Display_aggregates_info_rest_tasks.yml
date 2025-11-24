@@ -1,0 +1,170 @@
+---
+- name: run ONTAP gather facts for storage/aggregates (Selected fields)
+  netapp.ontap.na_ontap_rest_info:
+    use_rest: always
+    gather_subset:
+      - storage/aggregates
+    fields:
+      - '*'
+      #- name
+      #- uuid
+      #- state
+      #- "space.block_storage.available"
+      #- "space.block_storage.size"
+      #- "space.block_storage.used"
+      #- "block_storage.storage_type"
+      #- volume_count
+      #- node.name
+      #- node.uuid
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: aggregates_info
+
+- name: Display selected information for aggregates
+  debug:
+    msg: |
+      aggr_name: {{ record.name }}
+      aggr_uuid: {{ record.uuid }}
+      aggr_state: {{ record.state }}
+      aggr_available_space: {{ record.space.block_storage.available }}
+      aggr_total_size: {{ record.space.block_storage.size }}
+      aggr_used_space: {{ record.space.block_storage.used }}
+      aggr_storage_type: {{ record.block_storage.storage_type | default('N/A') }}
+      aggr_vol_Count: {{ record.volume_count | default('N/A') }}
+      aggr_node_name: {{ record.node.name | default('N/A') }}
+      aggr_node_uuid: {{ record.node.uuid | default('N/A') }}
+  with_items: "{{ aggregates_info.ontap_info['storage/aggregates'].records }}"
+  loop_control:
+    loop_var: record
+
+- name: "Output selected information for aggregates information in JSON format: {{ storage.hostname }}"
+  copy:
+    content: "{{ aggregates_info | to_json }}"
+    dest: "json/{{ output_f_name }}_{{ storage.hostname }}.json"
+
+
+#{
+#  "ontap_info": {
+#    "storage/aggregates": {
+#      "records": [
+#        {
+#          "uuid": "09ffaf8b-57fe-4352-9880-09d2dd5fb2c0",
+#          "name": "sodbackup01_04_backup01",
+#          "node": {
+#            "uuid": "892e54b6-d006-11ee-9093-00a098c72d6f",
+#            "name": "pndh-sodbackup01-04",
+#            "_links": {
+#              "self": {
+#                "href": "/api/cluster/nodes/892e54b6-d006-11ee-9093-00a098c72d6f"
+#              }
+#            }
+#          },
+#          "home_node": {
+#            "uuid": "892e54b6-d006-11ee-9093-00a098c72d6f",
+#            "name": "pndh-sodbackup01-04",
+#            "_links": {
+#              "self": {
+#                "href": "/api/cluster/nodes/892e54b6-d006-11ee-9093-00a098c72d6f"
+#              }
+#            }
+#          },
+#          "space": {
+#            "block_storage": {
+#              "size": 258731091689472,
+#              "available": 123557872123904,
+#              "used": 135173219565568,
+#              "full_threshold_percent": 96
+#            },
+#            "cloud_storage": {
+#              "used": 108465606643712
+#            },
+#            "efficiency": {
+#              "savings": 5617611392885632,
+#              "ratio": 25.28567173820196,
+#              "logical_used": 5848925208432640
+#            },
+#            "efficiency_without_snapshots": {
+#              "savings": 18409124541312,
+#              "ratio": 1.144034723955627,
+#              "logical_used": 146219447189504
+#            }
+#          },
+#          "state": "online",
+#          "snaplock_type": "non_snaplock",
+#          "create_time": "2024-08-08T10:40:26+02:00",
+#          "data_encryption": {
+#            "software_encryption_enabled": false,
+#            "drive_protection_enabled": false
+#          },
+#          "block_storage": {
+#            "primary": {
+#              "disk_count": 81,
+#              "disk_class": "capacity",
+#              "raid_type": "raid_tec",
+#              "raid_size": 27,
+#              "checksum_style": "block",
+#              "disk_type": "nl_sas"
+#            },
+#            "hybrid_cache": {
+#              "enabled": false
+#            },
+#            "mirror": {
+#              "enabled": false,
+#              "state": "unmirrored"
+#            },
+#            "plexes": [
+#              {
+#                "name": "plex0",
+#                "_links": {
+#                  "self": {
+#                    "href": "/api/storage/aggregates/09ffaf8b-57fe-4352-9880-09d2dd5fb2c0/plexes/plex0"
+#                  }
+#                }
+#              }
+#            ]
+#          },
+#          "cloud_storage": {
+#            "attach_eligible": false,
+#            "tiering_fullness_threshold": 15,
+#            "stores": [
+#              {
+#                "used": 108464062267392,
+#                "cloud_store": {
+#                  "name": "pndh-sodbackup01",
+#                  "uuid": "56953579-01c6-11ed-a578-00a0989ab9d0",
+#                  "_links": {
+#                    "self": {
+#                      "href": "/api/storage/aggregates/09ffaf8b-57fe-4352-9880-09d2dd5fb2c0/cloud-stores/56953579-01c6-11ed-a578-00a0989ab9d0"
+#                    }
+#                  }
+#                }
+#              }
+#            ]
+#          },
+#          "_links": {
+#            "self": {
+#              "href": "/api/storage/aggregates/09ffaf8b-57fe-4352-9880-09d2dd5fb2c0"
+#            }
+#          }
+#        },
+#        {
+#          "uuid": "0ead6fcf-f34a-4c4c-a303-daa22bc9938e",
+#          "name": "sodbackup01_02_backup01",
+#...
+#        }
+#      ],
+#      "num_records": 4,
+#      "_links": {
+#        "self": {
+#          "href": "/api/storage/aggregates?max_records=1024&fields=%2A"
+#        }
+#      }
+#    }
+#  },
+#  "changed": false,
+#  "failed": false
+#}
+#

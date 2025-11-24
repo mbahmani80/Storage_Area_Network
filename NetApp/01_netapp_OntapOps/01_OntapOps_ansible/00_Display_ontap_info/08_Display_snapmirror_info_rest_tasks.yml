@@ -1,0 +1,112 @@
+#ansible-playbook 12_Display_snapmirror_policies_info_rest.yml --extra-vars "storageip=10.199.14.180"
+#ansible-playbook 12_Display_snapmirror_policies_info_rest.yml --extra-vars "storageip=10.199.14.170"
+---
+- name: run ONTAP gather selected facts for snapmirror on "{{ storage.hostname }}"
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'snapmirror'
+    verb: 'GET'
+    params:
+      fields: "source-path,destination-path,lag-time,policy"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: snapmirror_info
+
+- name: Write snapmirror information to JSON "{{ output_f1_name }}" file
+  copy:
+    content: "{{ snapmirror_info | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f1_name }}_{{ storage.hostname }}.json"
+
+- name: run ONTAP gather selected facts for snapmirror policy on "{{ storage.hostname }}"
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'snapmirror/policy'
+    verb: 'GET'
+    params:
+      type: "mirror-vault,vault"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: snapmirror_info
+
+- name: Write snapmirror information to JSON "{{ output_f2_name }}" file
+  copy:
+    content: "{{ snapmirror_info | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f2_name }}_{{ storage.hostname }}.json"
+
+
+
+
+
+#(ansible-env)ubuntu@linumgmt:00_Display_ontap_info$ cat json/08_Display_snapmirror_policy_info_rest_tasks_195.227.206.44.json|jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [
+#      {
+#        "vserver": "pndh-sodbackup01",
+#        "policy": "Asynchronous",
+#        "type": "mirror_vault"
+#      },
+#      {
+#        "vserver": "pndh-sodbackup01",
+#        "policy": "CloudBackupDefault",
+#        "type": "vault"
+#      },
+#...
+#      {
+#        "vserver": "pndh-sodbackup01",
+#        "policy": "XDP_7d",
+#        "type": "vault"
+#      }
+#    ],
+#    "num_records": 18
+#  },
+#  "failed": false
+#}
+#
+#(ansible-env)ubuntu@linumgmt:00_Display_ontap_info$ cat json/08_Display_snapmirror_info_rest_tasks_195.227.206.44.json|jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [
+#      {
+#        "source_path": "age_hana_vserver02:age_hana_vserver02_GT1_data",
+#        "source_vserver": "age_hana_vserver02",
+#        "source_volume": "age_hana_vserver02_GT1_data",
+#        "destination_path": "snapmirror_age_hana_vserver_dc01:sv_age_hana_vserver02_GT1_data",
+#        "destination_vserver": "snapmirror_age_hana_vserver_dc01",
+#        "destination_volume": "sv_age_hana_vserver02_GT1_data",
+#        "policy": "XDP_30d",
+#        "lag_time": "P1148DT12M31S"
+#      },
+#      {
+#        "source_path": "age_hana_vserver02:age_hana_vserver02_GT1_dbarchivelog",
+#        "source_vserver": "age_hana_vserver02",
+#        "source_volume": "age_hana_vserver02_GT1_dbarchivelog",
+#        "destination_path": "snapmirror_age_hana_vserver_dc01:sm_age_hana_vserver02_GT1_dbarchivelog",
+#        "destination_vserver": "snapmirror_age_hana_vserver_dc01",
+#        "destination_volume": "sm_age_hana_vserver02_GT1_dbarchivelog",
+#        "policy": "MirrorAllSnapshots",
+#        "lag_time": "PT10H42M59S"
+#      },
+#...
+#      {
+#        "source_path": "vvs_vserver02:vvs_vserver02_vvs_db06_data",
+#        "source_vserver": "vvs_vserver02",
+#        "source_volume": "vvs_vserver02_vvs_db06_data",
+#        "destination_path": "snapmirror_vvs_vserver_dc01:sv_vvs_vserver02_vvs_db06_data",
+#        "destination_vserver": "snapmirror_vvs_vserver_dc01",
+#        "destination_volume": "sv_vvs_vserver02_vvs_db06_data",
+#        "policy": "XDP_30d",
+#        "lag_time": "P108DT5H22M27S"
+#      }
+#    ],
+#    "num_records": 395
+#  },
+#  "failed": false
+#}
+#

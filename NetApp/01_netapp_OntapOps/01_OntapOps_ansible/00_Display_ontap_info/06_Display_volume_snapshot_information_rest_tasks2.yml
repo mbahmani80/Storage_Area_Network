@@ -1,0 +1,54 @@
+#https://docs.ansible.com/ansible/latest/collections/netapp/ontap/na_ontap_rest_info_module.html
+#ansible-playbook 09_Display_volume_snapshot_information_rest.yml --extra-vars "storageip=192.168.178.4 svm=vs2 output_file1=json/Display_volume_snapshot_info1_rest.json"
+---
+- name: Retrieve snapshot information for SVM
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'volume/snapshot'
+    verb: 'GET'
+    params:
+      vserver: "{{ svm.name }}"
+      fields: "vserver,volume,snapshot,create-time,snapmirror-label,comment"
+      max_records: 1000000
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: snapshot_info
+
+- name: Save snapshot information to JSON file
+  copy:
+    content: "{{ snapshot_info | to_json }}"
+    dest: "{{ output_file1 }}"
+
+#(ansible-env)ubuntu@linumgmt:00_Display_ontap_info$ cat json/06_Display_volume_snapshot_information_rest_tasks_195.227.206.44_snapmirror_age_hana_vserver_dc01.json|jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [
+#      {
+#        "vserver": "snapmirror_age_hana_vserver_dc01",
+#        "volume": "sm_age_hana_vserver02_GT1_dbarchivelog",
+#        "snapshot": "snapmirror.a01bbfb9-2a6a-11ec-9f59-00a0989ab9d0_2164000740.2024-12-01_030000",
+#        "create_time": "2024-12-01T03:00:00+01:00"
+#      },
+#      {
+#        "vserver": "snapmirror_age_hana_vserver_dc01",
+#        "volume": "sm_age_hana_vserver02_GT1_dbarchivelog",
+#        "snapshot": "snapmirror.a01bbfb9-2a6a-11ec-9f59-00a0989ab9d0_2164000740.2024-12-02_030000",
+#        "create_time": "2024-12-02T03:00:00+01:00"
+#      },
+#...
+#      {
+#        "vserver": "snapmirror_age_hana_vserver_dc01",
+#        "volume": "sv_age_hana_vserver02_age_hdb33_HDQ_shared",
+#        "snapshot": "daily.2024-12-02_0030",
+#        "create_time": "2024-12-02T00:30:03+01:00",
+#        "snapmirror_label": "daily"
+#      }
+#    ],
+#    "num_records": 137
+#  },
+#  "failed": false
+#}
+#
