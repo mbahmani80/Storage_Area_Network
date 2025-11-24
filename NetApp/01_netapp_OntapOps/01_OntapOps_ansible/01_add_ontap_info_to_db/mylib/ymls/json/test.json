@@ -1,0 +1,1 @@
+{"ontap_info": {"cluster": {"name": "m-cl-01", "uuid": "c13d9e37-dcc4-11ef-94ee-00a098f3137d", "version": {"full": "NetApp Release 9.14.1P1: Thu Feb 15 00:45:21 UTC 2024"}, "management_interfaces": [{"ip": {"address": "172.28.150.10"}}], "timezone": {"name": "Etc/UTC"}, "_links": {"self": {"href": "/api/cluster"}}}}, "changed": false, "failed": false}

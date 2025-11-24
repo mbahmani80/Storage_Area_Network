@@ -1,0 +1,3 @@
+mysqldump -u admin1 -p --no-data ontapdb1 > ontapdb1-structure-$(date +%Y%m%d).sql
+mysql -h 127.0.0.1 -u admin1 -p ontapdb1 < ontapdb1-20240830.sql
+cat ontapdb1-structure-20240611.sql |grep -v -E '^\/\*|^-'

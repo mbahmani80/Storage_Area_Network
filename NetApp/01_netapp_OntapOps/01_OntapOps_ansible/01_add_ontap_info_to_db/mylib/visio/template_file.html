@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Diagram</title>
+    <!-- Include required libraries -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/styles/vis-network.css" rel="stylesheet" type="text/css"/>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #network {
+            width: 100%;
+            height: 600px;
+            border: 1px solid lightgray;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Container for the network diagram -->
+    <div id="network"></div>
+
+    <script type="text/javascript">
+        // JavaScript code to initialize and render the network diagram
+        var nodes = new vis.DataSet([
+            // Add nodes dynamically here
+        ]);
+        var edges = new vis.DataSet([
+            // Add edges dynamically here
+        ]);
+
+        var container = document.getElementById('network');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            // Customize network visualization options here
+            nodes: {
+                shape: 'circle',
+                size: 30,
+                font: {
+                    size: 14,
+                    color: '#000000'
+                }
+            },
+            edges: {
+                width: 2,
+                color: {
+                    inherit: 'from'
+                }
+            }
+        };
+        var network = new vis.Network(container, data, options);
+    </script>
+</body>
+</html>
+

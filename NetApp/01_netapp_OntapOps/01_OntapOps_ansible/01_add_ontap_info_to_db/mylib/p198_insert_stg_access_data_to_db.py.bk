@@ -1,0 +1,286 @@
+import mysql.connector
+from mysql.connector import Error
+import getpass
+import subprocess
+import yaml
+
+def connect_to_db():
+    """Establish a connection to the MySQL database."""
+    try:
+        connection = mysql.connector.connect(
+            host='127.0.0.1',
+            database='ontapdb1',
+            user='admin1',
+            password='Admin123'
+        )
+        if connection.is_connected():
+            print("Successfully connected to the database")
+            return connection
+    except Error as e:
+        print("Error while connecting to MySQL", e)
+        return None
+
+def fetch_customers(connection):
+    """Fetch customer details from the database."""
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT customer_id, customer_name FROM t_customer ORDER BY customer_id")
+        customers = cursor.fetchall()
+        cursor.close()
+        return customers
+    except Error as e:
+        print("Error while fetching customer data", e)
+        return []
+
+def display_customers(customers):
+    """Display customer information."""
+    print("\nAvailable customers:")
+    for customer in customers:
+        print(f"ID: {customer['customer_id']}, Name: {customer['customer_name']}")
+
+def encrypt_password(password, vault_password_file):
+    """Encrypt the password using ansible-vault and return the encrypted string."""
+    try:
+        process = subprocess.run(
+            ['ansible-vault', 'encrypt_string', password, '--vault-password-file', vault_password_file, '--encrypt-vault-id', 'default', '--name', 'password'],
+            capture_output=True, text=True, check=True
+        )
+        # Extract the encrypted value from the output
+        encrypted_value = process.stdout.strip().split('\n', 1)[1].strip()
+        return encrypted_value
+    except subprocess.CalledProcessError as e:
+        print(f"Error encrypting password: {e}")
+        return None
+
+def get_user_input(connection):
+    """Prompt the user for input and return a dictionary with the data."""
+    customers = fetch_customers(connection)
+    display_customers(customers)
+
+    storageip = input("Enter storage IP: ")
+    storagename = input("Enter storage name: ")
+    username = input(f"Enter username [admin]: ") or 'admin'
+    password = getpass.getpass("Enter password: ")  # Securely get the password
+    https = input("Enable HTTPS (yes/no) [yes]: ").strip().lower() or 'yes'
+    validate_certs = input("Validate certificates (yes/no) [no]: ").strip().lower() or 'no'
+    configtype = input("Enter config type (MetroCluster, MirrorCluster, Ontapselect, BackupCluster) [MetroCluster]: ").strip() or 'MetroCluster'
+    enabled = input("Enable (yes/no) [yes]: ").strip().lower() or 'yes'
+
+    customer_id = input("Enter customer ID (or press Enter to skip): ")
+    customer_id = int(customer_id) if customer_id else None
+
+    # Encrypt the password before storing it
+    vault_password_file = '/home/ubuntu/01_lab/vault_password_file'
+    encrypted_password = encrypt_password(password, vault_password_file)
+
+    return {
+        'storageip': storageip,
+        'storagename': storagename,
+        'username': username,
+        'password': encrypted_password,
+        'https': https == 'yes',
+        'validate_certs': validate_certs == 'yes',
+        'configtype': configtype,
+        'enabled': enabled == 'yes',
+        'customer_id': customer_id
+    }
+
+def insert_data(connection, data):
+    """Insert or update a record in the t_stg_access_data table."""
+    try:
+        cursor = connection.cursor()
+
+        # SQL statement to insert data
+        insert_query = """
+        INSERT INTO t_stg_access_data
+        (storageip, storagename, username, password, https, validate_certs, configtype, enabled, customer_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+        username=VALUES(username),
+        password=VALUES(password),
+        https=VALUES(https),
+        validate_certs=VALUES(validate_certs),
+        configtype=VALUES(configtype),
+        enabled=VALUES(enabled),
+        customer_id=VALUES(customer_id);
+        """
+
+        # Insert data
+        cursor.execute(insert_query, (
+            data.get('storageip'),
+            data.get('storagename'),
+            data.get('username'),
+            data.get('password'),
+            data.get('https'),
+            data.get('validate_certs'),
+            data.get('configtype'),
+            data.get('enabled'),
+            data.get('customer_id')
+        ))
+
+        connection.commit()
+        print(f"Record inserted/updated successfully into t_stg_access_data table")
+
+    except Error as e:
+        print("Error while inserting data into MySQL", e)
+    finally:
+        if connection.is_connected():
+            cursor.close()
+
+def update_storage_status(connection, ips, enable=True):
+    """Update the enabled status of storage based on the provided IPs."""
+    try:
+        status = 1 if enable else 0  # Set status to 1 for enable and 0 for disable
+        cursor = connection.cursor()
+        
+        ip_list = ips.split(',')
+        formatted_ips = ', '.join(['%s'] * len(ip_list))
+
+        update_query = f"""
+        UPDATE t_stg_access_data
+        SET enabled = %s
+        WHERE storageip IN ({formatted_ips});
+        """
+
+        cursor.execute(update_query, (status, *ip_list))
+        connection.commit()
+
+        if cursor.rowcount > 0:
+            print(f"Storage with IPs {', '.join(ip_list)} {'enabled' if enable else 'disabled'} successfully.")
+        else:
+            print(f"No storage found with the provided IPs: {', '.join(ip_list)}.")
+
+    except Error as e:
+        print(f"Error while {'enabling' if enable else 'disabling'} storage in MySQL", e)
+    finally:
+        if connection.is_connected():
+            cursor.close()
+
+def update_All_storage_status(connection, enable=True):
+    """Update the enabled status of storage based on the provided IPs."""
+    try:
+        status = 1 if enable else 0  # Set status to 1 for enable and 0 for disable
+        cursor = connection.cursor()
+        
+        update_query = f"""
+        UPDATE t_stg_access_data
+        SET enabled = %s;
+        """
+
+        cursor.execute(update_query, (status,))
+        connection.commit()
+
+        if cursor.rowcount > 0:
+            print(f"All Storage  {'enabled' if enable else 'disabled'} successfully.")
+        else:
+            print(f"No storage found.")
+
+    except Error as e:
+        print(f"Error while {'enabling' if enable else 'disabling'} storage in MySQL", e)
+    finally:
+        if connection.is_connected():
+            cursor.close()
+
+def show_storage(connection):
+    """Show storage information."""
+    try:
+        cursor = connection.cursor(dictionary=True)
+        query = """
+        SELECT s.storageip, s.storagename, s.configtype, s.enabled, s.customer_id, c.customer_name
+        FROM t_stg_access_data s
+        LEFT JOIN t_customer c ON s.customer_id = c.customer_id
+        ORDER BY s.customer_id;
+        """
+        cursor.execute(query)
+        storages = cursor.fetchall()
+        cursor.close()
+
+        print("\nStorage Information:")
+        for storage in storages:
+            print(f"ID: {storage['customer_id']}, Customer: {storage['customer_name']}, "
+            f"STG_IP: {storage['storageip']}, STG_Name: {storage['storagename']}, Enabled: {storage['enabled']}, configtype: {storage['configtype']}")
+            print("---------------------------------------------------------------")
+    except Error as e:
+        print("Error while fetching storage data", e)
+
+
+def delete_storage(connection, ips):
+    """Delete storage records based on the provided IPs."""
+    try:
+        cursor = connection.cursor()
+        
+        ip_list = ips.split(',')
+        formatted_ips = ', '.join(['%s'] * len(ip_list))
+
+        delete_query = f"""
+        DELETE FROM t_stg_access_data
+        WHERE storageip IN ({formatted_ips});
+        """
+
+        cursor.execute(delete_query, ip_list)
+        connection.commit()
+
+        if cursor.rowcount > 0:
+            print(f"Storage with IPs {', '.join(ip_list)} deleted successfully.")
+        else:
+            print(f"No storage found with the provided IPs: {', '.join(ip_list)}.")
+
+    except Error as e:
+        print(f"Error while deleting storage from MySQL", e)
+    finally:
+        if connection.is_connected():
+            cursor.close()
+
+def show_menu():
+    """Display the menu options."""
+    print("\nMenu:")
+    print("1. Show storage data")
+    print("2. Insert or update storage data")
+    print("3. Enable storage")
+    print("4. Disable storage")
+    print("5. Enable All storage")
+    print("6. Disable All storage")
+    print("7. Delete storage")
+    print("x. Exit")
+
+def main():
+    connection = connect_to_db()
+    if connection:
+        while True:
+            show_menu()
+            choice = input("Enter your choice: ").strip()
+
+            if choice == '1':
+                show_storage(connection)
+            elif choice == '2':
+                data = get_user_input(connection)
+                insert_data(connection, data)
+            elif choice == '3':
+                show_storage(connection)
+                ips = input("Enter comma-separated storage IPs to enable: ").strip()
+                update_storage_status(connection, ips, enable=True)
+            elif choice == '4':
+                show_storage(connection)
+                ips = input("Enter comma-separated storage IPs to disable: ").strip()
+                update_storage_status(connection, ips, enable=False)
+            elif choice == '5':
+                update_All_storage_status(connection, enable=True)
+                show_storage(connection)
+            elif choice == '6':
+                update_All_storage_status(connection, enable=False)
+                show_storage(connection)
+            elif choice == '7':
+                show_storage(connection)
+                ips = input("Enter comma-separated storage IPs to disable: ").strip()
+                delete_storage(connection, ips)
+            elif choice == 'x':
+                print("Exiting the program.")
+                break
+            else:
+                print("Invalid choice. Please try again.")
+        
+        connection.close()
+
+if __name__ == "__main__":
+    main()
+

@@ -1,0 +1,272 @@
+import argparse
+import os
+import subprocess
+import json
+import sys
+import mysql.connector
+from mylib import p00_tools_functions
+from mylib.p00_tools_functions import c_SystemDBrunFunctions
+#from mylib.p00_tools_functions import c_RunYMLFiles
+from mylib import p01_add_customer_to_db
+from mylib.p01_add_customer_to_db import c_CustomerManager
+from mylib import p02_add_datacenters_to_db
+from mylib.p02_add_datacenters_to_db import c_DatacenterManager
+from mylib import p03_add_ontap_info_to_db
+from mylib.p03_add_ontap_info_to_db import c_ONTAPInfo
+from mylib import p05_add_ontap_node_info_to_db
+from mylib.p05_add_ontap_node_info_to_db import c_ONTAPInfo_node
+from mylib import p06_add_aggregates_info_to_db
+from mylib import p07_add_svm_info_to_db
+from mylib import p08_add_volumes_info_to_db
+from mylib import p198_insert_stg_access_data_to_db
+
+# pip3 install mysql-connector-python 
+
+# Define the files path
+json_customer_data_ids_file_path = "mylib/ymls/json/customer_data_ids.json"
+json_display_ontap_info_rest = "mylib/ymls/json/Display_ontap_info_rest.json"
+json_display_ontap_metrocluster_info_rest = "mylib/ymls/json/Display_ontap_metrocluster_info_rest.json"
+json_display_ontap_node_info_rest = "mylib/ymls/json/Display_ontap_node_info_rest.json" 
+json_display_aggregates_info_rest = "mylib/ymls/json/Display_aggregates_info_rest.json"
+json_display_svm_info_rest = "mylib/ymls/json/Display_svm_info_rest.json"
+json_display_volume_information_rest = 'mylib/ymls/json/Display_volume_information_rest.json'
+
+# Define the directory containing the YAML files
+# yml_directory = "mylib/ymls"
+
+# Define the directory containing the JSON files
+# json_directory = "mylib/ymls/json"
+
+p_book_ontap_cluster_peers_info_rest = "mylib/ymls/03_Display_ontap_cluster_peers_info_rest.yml"
+p_book_ontap_node_info = "mylib/ymls/04_Display_ontap_node_info_rest.yml" 
+p_book_aggregates_info = "mylib/ymls/05_Display_aggregates_info_rest.yml"         
+p_book_svm_info = "mylib/ymls/06_Display_svm_info_rest.yml"
+p_book_svm_peer_info = "mylib/ymls/07_Display_svm_peer_info_rest.yml"
+p_book_volume_information = "mylib/ymls/08_Display_volume_information_rest.yml"
+p_book_snapshot_information = "mylib/ymls/09_Display_volume_snapshot_information_rest.yml"
+p_book_job_schedule_cron_info = "mylib/ymls/10_job_schedule_cron_info_rest.yml"
+
+
+# Function to parse command-line arguments
+def parse_args():
+    parser = argparse.ArgumentParser(description="Add information to the database")
+    parser.add_argument("-m", "--menu", action="store_true", help="Use menu-based approach")
+    parser.add_argument("-a", "--add-customer", action="store_true", help="Add customer")
+    parser.add_argument("-d", "--add-datacenters", action="store_true", help="Add datacenter")
+    parser.add_argument("-p", "--add-credential", action="store_true", help="Add credential")
+    parser.add_argument("-c", "--add-cluster", action="store_true", help="Add a cluster or Metrocluster")
+    return parser.parse_args()
+
+# function to add customer
+def f_add_customer(conn,customer_manager):
+
+    try:
+        if not conn:
+            sys.exit(1)
+
+        customer_manager.run_user_interface()
+
+        conn.close()
+    except mysql.connector.Error as err:
+        print(f"Database connection error: {err}")
+        return 1
+
+# function to add datacenters
+def f_add_datacenters(conn,dc_manager):
+
+    dc_manager.run_user_interface()
+
+
+# function to add cluster
+def f_add_cluster(conn,sys_run_db,ip):
+
+    extra_vars = f"storageip={ip}"
+    sys_run_db.run_ansible_playbook(p_book_ontap_info, extra_vars)
+    sys_run_db.run_ansible_playbook(p_book_ontap_metrocluster_info, extra_vars)
+    sys_run_db.run_ansible_playbook(p_book_ontap_node_info, extra_vars)
+    sys_run_db.run_ansible_playbook(p_book_aggregates_info, extra_vars)
+    sys_run_db.run_ansible_playbook(p_book_svm_info, extra_vars)
+    
+
+    # Load ONTAP info handler
+    ontap_info_handler = c_ONTAPInfo(json_display_ontap_info_rest,json_display_ontap_metrocluster_info_rest)
+
+    # Insert ONTAP info into t_stg_info table
+    result_insert = p03_add_ontap_info_to_db.insert_stg_info(conn, ontap_info_handler, customer_id, datacenter_id)
+    if result_insert != 0:
+        return result_insert
+
+    # Write customer_id and datacenter_id to a JSON file
+    result_write = p03_add_ontap_info_to_db.write_ids_to_json(customer_id, datacenter_id, json_customer_data_ids_file_path)
+    if result_write != 0:
+        return result_write
+
+
+# function to add nodes of cluster
+def f_add_nodes(conn):
+
+    # Create an instance of c_ONTAPInfo_node
+    ontap_node_info_handler = c_ONTAPInfo_node(json_customer_data_ids_file_path, json_display_ontap_info_rest,
+                                                    json_display_ontap_node_info_rest)
+    # Fetch stg_uuid from the other JSON file
+    stg_uuid = ontap_node_info_handler.fetch_stg_uuid_from_json()
+
+    # Fetch customer_id and datacenter_id
+    customer_id, datacenter_id = ontap_node_info_handler.fetch_ids_from_json()
+
+
+    # Fetch node information from the JSON file
+    node_info = ontap_node_info_handler.fetch_node_info_from_json()
+
+    # If any of the required data is missing, exit with error
+    if None in [stg_uuid, customer_id, datacenter_id] or not node_info:
+        print("Error: Missing required data.")
+        return 1
+
+    # Insert or update node information into t_stg_node_info table
+    result_write = p05_add_ontap_node_info_to_db.insert_or_update_ontap_node_info(conn, node_info, stg_uuid, customer_id, datacenter_id)
+    if result_write != 0:
+        return result_write
+
+
+def f_add_aggregates(conn):
+
+    aggregate_info = p06_add_aggregates_info_to_db.load_json(json_display_aggregates_info_rest)
+    if aggregate_info is None:
+        return 6  # Return error code 6 if JSON loading fails
+
+    # Insert or update aggregate information into t_aggregates table
+    result = p06_add_aggregates_info_to_db.insert_or_update_aggregate_info(conn, aggregate_info)
+    if result != 0:
+        return result  # Return the error code from insert_or_update_aggregate_info
+
+def f_add_svms(conn):
+    svm_info = p07_add_svm_info_to_db.load_json(json_display_svm_info_rest)
+
+    # Insert or update SVM information into t_svms table
+    p07_add_svm_info_to_db.insert_or_update_svm_info(conn, svm_info)
+
+    return 0
+
+def f_add_vols(conn):
+
+    json_data = p08_add_volumes_info_to_db.load_json(json_display_volume_information_rest)
+    volumes = json_data['ontap_info']['storage/volumes']['records']
+
+    if volumes:
+        success = p08_add_volumes_info_to_db.update_or_insert_volume_info(conn, volumes)
+        if success:
+            print("All volume information updated or inserted successfully!")
+        else:
+            print("Failed to update or insert volume information.")
+
+    return 0
+
+# Main function for menu-based approach
+def menu_based(conn,sys_run_db,stgip,customer_manager,dc_manager):
+    while True:
+        print("\nMenu:")
+        print("1. Add customer")
+        print("2. Add datacenter")
+        print("3. Add credential")
+        print("4. Add a cluster or Metrocluster")
+        print("x. Exit")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            f_add_customer(conn,customer_manager)
+        elif choice == "2":
+            f_add_datacenters(conn,dc_manager)
+        elif choice == "3":
+            f_add_credential(conn, sys_run_db) 
+        elif choice == "4":
+            add_cluster_submenu(conn, sys_run_db) 
+        elif choice == "x":
+            print("Exiting...")
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
+def add_cluster_submenu(conn, sys_run_db):
+    print("\nCluster Types:")
+    print("1. Regular Cluster")
+    print("2. MetroCluster")
+    print("x. Back to Main Menu")
+
+    choice = input("Enter your choice: ")
+
+    if choice == "1":
+        cluster_ip = input("Enter IP addresses of Cluster: ")
+        f_add_cluster(conn, sys_run_db, cluster_ip)
+        f_add_nodes(conn)
+        f_add_aggregates(conn)
+        f_add_svms(conn)
+    elif choice == "2":
+        f_add_metrocluster(conn, sys_run_db)
+    elif choice == "x":
+        print("Returning to main menu...")
+    else:
+        print("Invalid choice. Please try again.")
+
+def f_add_metrocluster(conn, sys_run_db):
+    metro_ips = input("Enter comma-separated IP addresses of MetroCluster nodes: ")
+    metro_ips_list = metro_ips.split(',')  # Splitting input into list of IP addresses
+    for stgip in metro_ips_list:
+        f_add_cluster(conn,sys_run_db,stgip)  # Passing each IP address to f_add_cluster
+        f_add_nodes(conn)
+        f_add_aggregates(conn)
+        f_add_svms(conn)
+
+# Function to display usage information
+def usage():
+    print("Usage: python 00_add_info_db.py [-m | -a | -d | -c]")
+    print("Options:")
+    print("  -m, --menu            : Use menu-based approach")
+    print("  -a, --add-customer    : Add customer")
+    print("  -d, --add-datacenters : Add datacenter")
+    print("  -p, --add-credential  : Add credential")
+    print("  -c, --add-cluster     : Add a cluster or Metrocluster")
+
+# Main function
+def main():
+    args = parse_args()
+
+    # Connect to the MariaDB database
+    sys_run_db = c_SystemDBrunFunctions()
+    try:
+        conn = sys_run_db.connect_to_database()
+        if not conn:
+            sys.exit(1)
+
+        #sys_run_db.delete_json_files()
+        #stgip="10.199.14.170"
+        stgip="192.168.56.4"
+        if not conn:
+            return 1  # Return error code 1 if connection fails
+        
+        customer_manager = c_CustomerManager(conn)
+        dc_manager = c_DatacenterManager(conn, customer_manager)
+    
+        if args.menu:
+            menu_based(conn,sys_run_db,stgip,customer_manager,dc_manager)
+        elif args.add_customer:
+            f_add_customer(conn,customer_manager)
+        elif args.add_datacenters:
+            f_add_datacenters(conn,dc_manager)
+        elif args.add_cluster:
+            f_add_credential(conn,sys_run_db,stgip)
+        elif args.add_cluster:
+            f_add_cluster(conn,sys_run_db,stgip)
+        else:
+            usage()
+    
+        # Close database connection
+        conn.close()
+
+    except mysql.connector.Error as err:
+        print(f"Database connection error: {err}")
+        return 1
+if __name__ == "__main__":
+    main()
+

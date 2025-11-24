@@ -1,0 +1,1 @@
+{"changed": false, "msg": {"records": [{"vserver": "m-cl-01", "lif": "m-cl-01-01_mgmt1", "role": "node_mgmt", "address": "172.28.150.11", "curr_node": "m-cl-01-01"}, {"vserver": "m-cl-01", "lif": "m-cl-01-02_mgmt", "role": "node_mgmt", "address": "172.28.150.12", "curr_node": "m-cl-01-02"}], "num_records": 2}, "failed": false}

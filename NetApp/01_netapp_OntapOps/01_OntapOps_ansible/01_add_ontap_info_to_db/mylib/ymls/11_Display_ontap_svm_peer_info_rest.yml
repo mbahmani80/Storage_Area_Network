@@ -1,0 +1,46 @@
+#ansible-playbook 03_Display_ontap_svm_peers_info_rest.yml --extra-vars "storageip=192.168.56.4"
+#ansible-playbook 03_Display_ontap_svm_peers_info_rest.yml --extra-vars "storageip=10.199.14.180"
+#ansible-playbook 03_Display_ontap_svm_peers_info_rest.yml --extra-vars "storageip=10.199.14.170"
+---
+- hosts: localhost 
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars.yml
+  vars:
+    login: &login 
+      hostname: "{{ login.hostname }}"
+      username: "{{ login.username }}"
+      password: "{{ login.password }}"
+      https: "{{ login.https }}"
+      validate_certs: "{{ login.validate_certs }}"
+    svms: "{{ svms }}"
+    output_file: "json/Display_ontap_svm_peer_info_rest.json"  # Define the output file
+  tasks:
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - "{{ output_file }}"
+
+    - name: run ONTAP gather selected facts for svm_peer_info
+      netapp.ontap.na_ontap_rest_info:
+        use_rest: always
+        gather_subset:
+          - svm/peers
+        fields:
+          - "*"
+        <<: *login
+      register: svm_peer_info
+
+    - name: Write cluster selected information to JSON file
+      copy:
+        content: "{{ svm_peer_info | to_json }}"
+        dest: "{{ output_file }}"

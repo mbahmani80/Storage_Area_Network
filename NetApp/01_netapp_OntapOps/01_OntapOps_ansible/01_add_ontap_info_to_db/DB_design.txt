@@ -1,0 +1,219 @@
+
+drop database ontapdb1;
+
+create database ontapdb1;
+grant all privileges on ontapdb1.* to admin1@'%' identified by 'Admin123';
+grant all privileges on ontapdb1.* to admin1@localhost identified by 'Admin123';
+FLUSH PRIVILEGES;
+
+use ontapdb1;
+
+CREATE TABLE t_customer (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(255),
+    customer_email VARCHAR(255),
+    customer_address VARCHAR(255)
+);
+
+CREATE TABLE t_datacenters (
+    datacenter_id INT AUTO_INCREMENT PRIMARY KEY,
+    datacenter_name VARCHAR(255),
+    datacenter_country CHAR(2), -- Changed data type to CHAR(2) for two-letter country codes
+    datacenter_city VARCHAR(255),
+    datacenter_address VARCHAR(255),
+    customer_id INT,
+    FOREIGN KEY (customer_id) REFERENCES t_customer(customer_id),
+    INDEX (customer_id)
+);
+
+CREATE TABLE t_ontap_info (
+    stg_name VARCHAR(255),
+    stg_uuid VARCHAR(255) PRIMARY KEY,
+    stg_version VARCHAR(255),
+	stg_mgmt_ip VARCHAR(255),
+    stg_timezone TEXT,
+    customer_id INT,   -- Added column for customer_id
+    datacenter_id INT, -- Added column for datacenter_id
+    FOREIGN KEY (customer_id) REFERENCES t_customer(customer_id),
+    FOREIGN KEY (datacenter_id) REFERENCES t_datacenters(datacenter_id) -- Foreign key for datacenter_id
+);
+
+CREATE TABLE t_ontap_node_info (
+    node_name VARCHAR(255),
+    node_uuid VARCHAR(255) PRIMARY KEY,
+    node_model VARCHAR(255),
+    node_serial_number VARCHAR(255),
+    node_system_id VARCHAR(255),
+    node_storage_configuration TEXT,
+    node_location VARCHAR(255),
+    node_version VARCHAR(255),
+	stg_uuid VARCHAR(255),
+    customer_id INT,
+    datacenter_id INT, -- Added column for datacenter_id
+    FOREIGN KEY (customer_id) REFERENCES t_customer(customer_id),
+    FOREIGN KEY (datacenter_id) REFERENCES t_datacenters(datacenter_id),
+    FOREIGN KEY (stg_uuid) REFERENCES t_ontap_info(stg_uuid)	-- Foreign key for datacenter_id
+);
+
+CREATE TABLE t_aggregates (
+    aggr_name VARCHAR(255),
+    aggr_uuid VARCHAR(255) PRIMARY KEY,
+    aggr_state VARCHAR(50),
+    aggr_available_space BIGINT,
+    aggr_total_size BIGINT,
+    aggr_used_space BIGINT,
+    aggr_storage_type VARCHAR(50),
+    aggr_vol_count INT,
+    aggr_node_name VARCHAR(255),
+    aggr_node_uuid VARCHAR(255),
+    FOREIGN KEY (aggr_node_uuid) REFERENCES t_ontap_node_info(node_uuid) -- Foreign key for stg_name
+);
+
+
+CREATE TABLE t_svms (
+    svm_name VARCHAR(255),
+    svm_uuid VARCHAR(255) PRIMARY KEY,
+    svm_language VARCHAR(50),
+    svm_state VARCHAR(50),
+    svm_subtype VARCHAR(50),
+    svm_comment TEXT,
+    svm_aggregates_name VARCHAR(255),
+    svm_aggregates_uuid VARCHAR(255),
+    svm_ip_address VARCHAR(50),
+    svm_ip_name VARCHAR(50),
+    svm_cifs_allowed BOOLEAN,
+    svm_cifs_enabled BOOLEAN,
+    svm_fcp_allowed BOOLEAN,
+    svm_fcp_enabled BOOLEAN,
+    svm_iscsi_allowed BOOLEAN,
+    svm_iscsi_enabled BOOLEAN,
+    svm_nfs_allowed BOOLEAN,
+    svm_nfs_enabled BOOLEAN,
+    svm_s3_allowed BOOLEAN,
+    svm_s3_enabled BOOLEAN,
+    svm_nvme_allowed BOOLEAN,
+    svm_nvme_enabled BOOLEAN,
+    svm_snapshot_policy VARCHAR(255),
+    svm_ipspace_name VARCHAR(255),
+    FOREIGN KEY (svm_aggregates_uuid) REFERENCES t_aggregates(aggr_uuid)  -- Foreign key for stg_name
+);
+
+CREATE TABLE t_volumes (
+    vol_name VARCHAR(255),
+    vol_uuid VARCHAR(255) PRIMARY KEY,
+    vol_state VARCHAR(50),
+    vol_type VARCHAR(50),
+    vol_style VARCHAR(50),
+    vol_size BIGINT,
+    vol_comment TEXT,
+    vol_creation_time VARCHAR(100),
+    vol_language VARCHAR(50),
+    vol_snapshot_policy VARCHAR(255),
+    vol_nas_export_policy VARCHAR(255),
+    vol_svm_name VARCHAR(255),
+    vol_svm_uuid VARCHAR(255),
+    vol_is_flexclone VARCHAR(255),
+    vol_snapmirror_protected VARCHAR(255),
+    vol_aggregates_name VARCHAR(255),
+    vol_aggregates_uuid VARCHAR(255),
+    FOREIGN KEY (vol_svm_uuid) REFERENCES t_svms(svm_uuid),
+    FOREIGN KEY (vol_aggregates_uuid) REFERENCES t_aggregates(aggr_uuid)
+);
+
+MariaDB [ontapdb1]> ALTER TABLE t_aggregates MODIFY COLUMN aggr_available_space BIGINT;
+Query OK, 0 rows affected (0,027 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [ontapdb1]> ALTER TABLE t_aggregates MODIFY COLUMN aggr_total_size BIGINT;
+Query OK, 0 rows affected (0,024 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [ontapdb1]> ALTER TABLE t_aggregates MODIFY COLUMN aggr_used_space BIGINT;
+Query OK, 0 rows affected (0,028 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [ontapdb1]>  ALTER TABLE t_volumes MODIFY COLUMN vol_size BIGINT;
+Query OK, 0 rows affected (0,027 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+MariaDB [ontapdb1]> ALTER TABLE t_volumes MODIFY COLUMN vol_creation_time VARCHAR(100);
+
+MariaDB [ontapdb1]> ALTER TABLE t_volumes
+    -> CHANGE COLUMN vol_ggregates_name vol_aggregates_name VARCHAR(255);
+Query OK, 0 rows affected (0,008 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+ALTER TABLE t_datacenters
+    CHANGE COLUMN datacenter_location datacenter_city VARCHAR(255),
+    ADD COLUMN datacenter_country VARCHAR(255),
+    ADD COLUMN datacenter_address VARCHAR(255);
+	
+-- Alter the table to change the data types and lengths
+ALTER TABLE t_datacenters
+    MODIFY COLUMN datacenter_country CHAR(2), -- Change data type to CHAR(2) for country codes
+    MODIFY COLUMN datacenter_city VARCHAR(255),
+    MODIFY COLUMN datacenter_address VARCHAR(255);
+
+mysqldump -u admin1 -p --no-data ontapdb1 > ontapdb1_schema.sql
+cat tmp/aggregates_info.json |jq
+
+
+-- For t_aggregates table
+ALTER TABLE t_aggregates
+DROP FOREIGN KEY aggr_node_uuid,
+ADD CONSTRAINT aggr_node_uuid 
+FOREIGN KEY (aggr_node_uuid) REFERENCES t_ontap_node_info(node_uuid) ON DELETE CASCADE;
+
+-- For t_svms table
+ALTER TABLE t_svms
+DROP FOREIGN KEY svm_aggregates_uuid,
+ADD CONSTRAINT svm_aggregates_uuid 
+FOREIGN KEY (svm_aggregates_uuid) REFERENCES t_aggregates(aggr_uuid) ON DELETE CASCADE;
+
+
+
+DELETE FROM t_aggregates WHERE vol_svm_uuid IN (SELECT svm_uuid FROM t_ontap_node_info);
+DELETE FROM t_ontap_node_info;
+
+DELETE FROM t_volumes WHERE vol_svm_uuid IN (SELECT svm_uuid FROM t_svms);
+DELETE FROM t_svms;
+
+
+-- First, delete rows from t_aggregates table referencing t_ontap_node_info
+DELETE FROM t_aggregates WHERE aggr_node_uuid IN (SELECT node_uuid FROM t_ontap_node_info);
+
+-- Next, delete rows from t_svms table referencing t_aggregates
+DELETE FROM t_svms WHERE svm_aggregates_uuid IN (SELECT aggr_uuid FROM t_aggregates WHERE aggr_node_uuid IN (SELECT node_uuid FROM t_ontap_node_info));
+
+-- Now, you should be able to delete rows from t_ontap_node_info
+DELETE FROM t_ontap_node_info;
+
+
+
+MariaDB [ontapdb1]> show tables;
++--------------------+
+| Tables_in_ontapdb1 |
++--------------------+
+| t_aggregates       |
+| t_customer         |
+| t_datacenters      |
+| t_ontap_info       |
+| t_ontap_node_info  |
+| t_svms             |
+| t_volumes          |
++--------------------+
+7 rows in set (0,000 sec)
+
+MariaDB [ontapdb1]> select * from t_aggregates;
+
+MariaDB [ontapdb1]> select * from t_customer;
+
+MariaDB [ontapdb1]> select * from t_datacenters;
+
+MariaDB [ontapdb1]> select * from t_ontap_info;
+
+MariaDB [ontapdb1]> select * from t_ontap_node_info;
+
+MariaDB [ontapdb1]> select * from t_svms;
+MariaDB [ontapdb1]>
+

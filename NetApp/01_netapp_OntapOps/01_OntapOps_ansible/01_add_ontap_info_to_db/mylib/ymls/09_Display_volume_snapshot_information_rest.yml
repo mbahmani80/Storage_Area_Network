@@ -1,0 +1,50 @@
+#https://docs.ansible.com/ansible/latest/collections/netapp/ontap/na_ontap_rest_info_module.html
+#ansible-playbook 09_Display_volume_snapshot_information_rest.yml --extra-vars "storageip=192.168.178.4 svm=vs2 output_file1=json/Display_volume_snapshot_info1_rest.json"
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars.yml
+  vars:
+    login: &login
+      hostname: "{{ login.hostname }}"
+      username: "{{ login.username }}"
+      password: "{{ login.password }}"
+      https: "{{ login.https }}"
+      validate_certs: "{{ login.validate_certs }}"
+    #storageip=192.168.178.4
+    #svm: svm01_nfs
+    #output_file1: "json/Display_volume_snapshot_info1_rest.json"  # Define the output file
+  tasks:
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - "{{ output_file1 }}"
+
+    - name: Retrieve snapshot information of specified svm and volume with rest_cli
+      netapp.ontap.na_ontap_rest_cli:
+        command: 'volume/snapshot'
+        verb: 'GET'
+        params:
+          #create_time: "<90d"
+          vserver: "{{ svm }}"
+          fields: "vserver,volume,snapshot,create-time,snapmirror-label,comment"
+          max_records: 1000000  # Max value of API output - Adjust this value as needed
+        <<: *login
+      register: storage_volumes_snapshot_info_selected_fields
+
+
+    - name: Write snapshot information of specified svm and volume in "{{ output_file1 }}" JSON format
+      copy:
+        content: "{{ storage_volumes_snapshot_info_selected_fields  | to_json }}"
+        dest: "{{ output_file1 }}"
+

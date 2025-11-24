@@ -1,0 +1,68 @@
+#ansible-playbook 06_Display_svm_info_rest.yml --extra-vars "storageip=192.168.56.4"
+#ansible-playbook 06_Display_svm_info_rest.yml --extra-vars "storageip=10.199.14.180"
+#ansible-playbook 06_Display_svm_info_rest.yml --extra-vars "storageip=10.199.14.170"
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars.yml
+  vars:
+    login: &login
+      hostname: "{{ login.hostname }}"
+      username: "{{ login.username }}"
+      password: "{{ login.password }}"
+      https: "{{ login.https }}"
+      validate_certs: "{{ login.validate_certs }}"
+    svms: "{{ svms }}"
+    output_file: "json/Display_svm_info_rest.json"  # Define the output file
+  tasks:
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - "{{ output_file }}"
+
+    - name: run ONTAP gather facts for svm/svms
+      netapp.ontap.na_ontap_rest_info:
+        use_rest: always
+        gather_subset:
+          - svm/svms
+        fields:
+          - name
+          - uuid
+          - language
+          - state
+          - subtype
+          - comment
+          - "aggregates.name"
+          - "aggregates.uuid"
+          - "ip_interfaces.ip.address"
+          - "ip_interfaces.name"
+          - "cifs.allowed"
+          - "cifs.enabled"
+          - "fcp.allowed"
+          - "fcp.enabled"
+          - "iscsi.allowed"
+          - "iscsi.enabled"
+          - "nfs.allowed"
+          - "nfs.enabled"
+          - "s3.allowed"
+          - "s3.enabled"
+          - "nvme.allowed"
+          - "nvme.enabled"
+          - "snapshot_policy.name"
+          - "ipspace.name"
+        <<: *login
+      register: svm_info
+
+    - name: Output selected information for svm information in JSON format
+      copy:
+        content: "{{ svm_info | to_json }}"
+        dest: "{{ output_file }}"

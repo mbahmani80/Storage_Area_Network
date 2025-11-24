@@ -1,0 +1,62 @@
+#ansible-playbook 01_Display_ontap_info_rest.yml --extra-vars "storageip=192.168.56.4"
+#ansible-playbook 01_Display_ontap_info_rest.yml --extra-vars "storageip=10.199.14.180"
+#ansible-playbook 01_Display_ontap_info_rest.yml --extra-vars "storageip=10.199.14.170"
+#ansible-playbook 01_Display_ontap_info_rest.yml --extra-vars '{"storageip": "192.168.178.4","output_file":"json/a1.yml" }'
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars.yml
+  vars:
+    login: &login
+      hostname: "{{ login.hostname }}"
+      username: "{{ login.username }}"
+      password: "{{ login.password }}"
+      https: "{{ login.https }}"
+      validate_certs: "{{ login.validate_certs }}"
+    svms: "{{ svms }}"
+   # output_file: "json/Display_ontap_info_rest.json"  # Define the output file
+  tasks:
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - "{{ output_file }}"
+
+    - name: run ONTAP gather selected facts for cluster_info
+      netapp.ontap.na_ontap_rest_info:
+        use_rest: always
+        gather_subset:
+          - cluster
+        fields:
+          - "name"
+          - "uuid"
+          - "version.full"
+          - "management_interfaces.ip.address"
+          - "timezone.name"
+        <<: *login
+      register: cluster_info
+
+    - name: Write cluster selected information to JSON file
+      copy:
+        content: "{{ cluster_info | to_json }}"
+        dest: "{{ output_file }}"
+
+    - name: Print cluster information
+      debug:
+        msg:
+          - "{{ cluster_info.ontap_info.cluster.name }}"
+          - "{{ cluster_info.ontap_info.cluster.uuid }}"
+          - "{{ cluster_info.ontap_info.cluster.version.full }}"
+          - "{{ cluster_info.ontap_info.cluster.management_interfaces[0].ip.address }}"
+          - "{{ cluster_info.ontap_info.cluster.timezone.name }}"
+
+

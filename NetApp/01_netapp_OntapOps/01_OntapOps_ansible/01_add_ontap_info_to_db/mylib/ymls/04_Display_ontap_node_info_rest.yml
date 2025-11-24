@@ -1,0 +1,90 @@
+#https://docs.ansible.com/ansible/latest/collections/netapp/ontap/index.html#plugins-in-netapp-ontap
+#ansible-playbook 04_Display_ontap_node_info_rest.yml --extra-vars "storageip=192.168.56.4"
+#ansible-playbook 04_Display_ontap_node_info_rest.yml --extra-vars "storageip=10.199.14.180"
+#ansible-playbook 04_Display_ontap_node_info_rest.yml --extra-vars "storageip=10.199.14.170"
+---
+- hosts: localhost 
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true  # Stop playbook execution if any task fails
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars.yml
+  vars:
+    login: &login 
+      hostname: "{{ login.hostname }}"
+      username: "{{ login.username }}"
+      password: "{{ login.password }}"
+      https: "{{ login.https }}"
+      validate_certs: "{{ login.validate_certs }}"
+    svms: "{{ svms }}"
+    output_file: "json/Display_ontap_node_info_rest.json"  # Define the output file
+    output_file1: "json/Display_ontap_node_info_rest.json1"  # Define the output file
+    output_file2: "json/Display_ontap_node_info_rest.json2"  # Define the output file
+
+  tasks:
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: '{{ item }}'
+        state: absent
+      with_items:
+        - "{{ output_file }}"
+        - "{{ output_file1 }}"
+        - "{{ output_file2 }}"
+
+    - name: run ONTAP gather facts for cluster_node_info
+      netapp.ontap.na_ontap_rest_info:
+        use_rest: always
+        gather_subset:
+          - cluster_node_info
+        fields:
+          - "name"
+          - "uuid"
+          - "model"
+          - "serial_number"
+          - "system_id"
+          - "storage_configuration"
+          - "location"
+          - "version"
+        <<: *login
+      register: cluster_node_info
+
+    - name: Output cluster node information in JSON format
+      copy:
+        content: "{{ cluster_node_info | to_json }}"
+        dest: "{{ output_file }}"
+
+
+    - name: show system service-processor network
+      netapp.ontap.na_ontap_rest_cli:
+        command: 'system/service-processor/network'
+        verb: 'GET'
+        params:
+          address-family: "IPv4"
+          fields: "ip-address"
+        <<: *login
+      register: service_processor
+
+    - name: Write service-processor information to JSON file
+      copy:
+        content: "{{ service_processor | to_json }}"
+        dest: "{{ output_file1 }}"
+
+    - name: show node-mgmt network
+      netapp.ontap.na_ontap_rest_cli:
+        command: 'network/interface'
+        verb: 'GET'
+        params:
+          role: "node-mgmt"
+          fields: "curr-node,address"
+        <<: *login
+      register:  node_mgmt
+
+    - name: Write node-mgmt information to JSON file
+      copy:
+        content: "{{ node_mgmt | to_json }}"
+        dest: "{{ output_file2 }}"
