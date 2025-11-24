@@ -1,0 +1,43 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  collections:
+    - netapp.ontap
+  vars_files:
+    - vars_stgbackup01_02.yml 
+  vars:
+    sub_task: "tasks/08_vol_move_show_tasks.yml"
+    output_dir: json
+    output_f1_name: "volmove_display_vol_move"
+    output_f2_name: "volmove_display_aggr"
+    output_f3_name: "volmove_display_moving_vol_size"
+  tasks:
+
+    # Ensure the 'json' directory exists
+    - name: Ensure the 'json' directory exists
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: '0755'
+
+    # Ensure absence of old freeze files
+    - name: Ensure absence of old freeze files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "json/{{ output_f1_name }}_*.json"
+        - "json/{{ output_f2_name }}_*.json"
+        - "json/{{ output_f3_name }}_*.json"
+
+    - name: Perform tasks for each storage
+      include_tasks: "{{ sub_task }}"
+      when: storage.enabled
+      loop: "{{ storages }}"
+      loop_control:
+        loop_var: storage
+      no_log: true
+

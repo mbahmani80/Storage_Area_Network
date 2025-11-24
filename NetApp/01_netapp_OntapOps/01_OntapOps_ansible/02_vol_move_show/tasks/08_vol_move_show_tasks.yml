@@ -1,0 +1,135 @@
+---
+- name: Show volume move status for storage {{ storage.hostname }}
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'volume/move'
+    verb: 'GET'
+    params:
+      fields: "source-aggregate,destination-aggregate,percent-complete,volume,vserver,state,phase"
+      state: "healthy,warning,failed"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: vol_move_show_result
+
+- name: Write volume move information into JSON file
+  copy:
+    content: "{{ vol_move_show_result | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f1_name }}_{{ storage.hostname }}.json"
+
+- name: Show aggregate status for storage {{ storage.hostname }}
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'aggr'
+    verb: 'GET'
+    params:
+      fields: "volcount,usedsize,percent-used,size"
+      aggregate: "!*root*"
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: aggr_show_result
+
+- name: Write aggregate information into JSON file
+  copy:
+    content: "{{ aggr_show_result | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f2_name }}_{{ storage.hostname }}.json"
+
+- name: "Show moving Volume size on Storage: {{ storage.hostname }}"
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'volume'
+    verb: 'GET'
+    params:
+      fields: "size"
+      is-moving: true
+    hostname: "{{ storage.hostname }}"
+    username: "{{ storage.username }}"
+    password: "{{ storage.password }}"
+    https: "{{ storage.https }}"
+    validate_certs: "{{ storage.validate_certs }}"
+  register: moving_Volume_size
+
+- name: Write moving_Volume_size information into JSON file
+  copy:
+    content: "{{ moving_Volume_size | to_json }}"
+    dest: "{{ output_dir }}/{{ output_f3_name }}_{{ storage.hostname }}.json"
+
+
+
+
+#(ansible-env)ubuntu@linumgmt:02_vol_move_show$ cat json/volmove_display_vol_move_195.227.206.44.json |jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [],
+#    "num_records": 0
+#  },
+#  "failed": false
+#}
+#
+#(ansible-env)ubuntu@linumgmt:02_vol_move_show$ cat json/volmove_display_vol_move_195.227.213.185.json |jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [
+#      {
+#        "vserver": "snapmirror_cod_vserver",
+#        "volume": "sv_cod_vserver04_os_nfs13",
+#        "destination_aggregate": "sodbackup02_04_backup01",
+#        "percent_complete": 80,
+#        "phase": "replicating",
+#        "source_aggregate": "sodbackup02_02_backup01",
+#        "state": "healthy"
+#      },
+#      {
+#        "vserver": "snapmirror_cod_vserver",
+#        "volume": "sv_cod_vserver04_os_nfs14",
+#        "destination_aggregate": "sodbackup02_03_backup01",
+#        "percent_complete": 55,
+#        "phase": "replicating",
+#        "source_aggregate": "sodbackup02_02_backup01",
+#        "state": "healthy"
+#      }
+#    ],
+#    "num_records": 2
+#  },
+#  "failed": false
+#}
+#(ansible-env)ubuntu@linumgmt:02_vol_move_show$
+#
+#
+#(ansible-env)ubuntu@linumgmt:02_vol_move_show$ cat json/volmove_display_aggr_195.227.213.185.json |jq
+#{
+#  "changed": false,
+#  "msg": {
+#    "records": [
+#      {
+#        "aggregate": "sodbackup02_02_backup01",
+#        "percent_used": 16,
+#        "size": 387177326542848,
+#        "usedsize": 62789666402304,
+#        "volcount": 3
+#      },
+#      {
+#        "aggregate": "sodbackup02_03_backup01",
+#        "percent_used": 76,
+#        "size": 306283945132032,
+#        "usedsize": 233205508816896,
+#        "volcount": 1158
+#      },
+#      {
+#        "aggregate": "sodbackup02_04_backup01",
+#        "percent_used": 79,
+#        "size": 306283945132032,
+#        "usedsize": 241175802671104,
+#        "volcount": 1689
+#      }
+#    ],
+#    "num_records": 3
+#  },
+#  "failed": false
+#}
+#(ansible-env)ubuntu@linumgmt:02_vol_move_show$
+#
