@@ -1,1 +1,0 @@
-{"changed": false, "msg": {"records": [{"node": "m-cl-01-01", "address_family": "ipv4", "ip_address": "172.28.150.21"}, {"node": "m-cl-01-02", "address_family": "ipv4", "ip_address": "172.28.150.22"}], "num_records": 2}, "failed": false}

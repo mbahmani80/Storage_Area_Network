@@ -1,1 +1,0 @@
-{"changed": false, "msg": {"records": [{"vserver": "m-cl-01-01", "volume": "vol0", "activity_tracking_unsupported_reason": "Volume activity tracking is not supported on 7-Mode volumes."}, {"vserver": "m-cl-01-02", "volume": "vol0", "activity_tracking_unsupported_reason": "Volume activity tracking is not supported on 7-Mode volumes."}], "num_records": 2}, "failed": false}
