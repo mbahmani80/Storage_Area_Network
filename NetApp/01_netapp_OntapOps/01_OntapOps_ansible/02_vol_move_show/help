@@ -1,0 +1,70 @@
+.
+├── 08_vol_move_show_main.yml
+├── 08_vol_move_show.py
+├── help
+├── json
+│   ├── volmove_display_aggr_1.json
+│   ├── volmove_display_aggr_2.json
+│   ├── volmove_display_vol_move_1.json
+│   └── volmove_display_vol_move_2.json
+├── log
+│   └── 08_vol_move_show.log
+├── tasks
+│   └── 08_vol_move_show_tasks.yml
+└── vars_pndh-sodbackup01_02.yml
+
+3 directories, 10 files
+
+
+
+
+
+
+
+
+# https://netapp.io/2020/04/23/ontap-rest-apis/
+# https://github.com/NetApp/ontap-rest-python
+# https://pypi.org/project/netapp-ontap/
+# cp vars_pndh-sodbackup01.yml  vars.yml
+# ansible-playbook 07_Set_volume_tiering_policy.yml -e "netapp_hostname=your_hostname netapp_username=your_username netapp_password=your_password"
+
+cd /home/ubuntu/01_lab/lab/01_tools/01_netapp_playbook/base_ansible/vol_move_show
+
+(ansible-env)ubuntu@linumgmt:vol_move_show$ ansible-playbook 08_vol_move_show_main.yml
+(ansible-env)ubuntu@linumgmt:vol_move_show$ python 08_vol_move_show.py >> log/08_vol_move_show.log
+
+
+
+./08_vol_move_show.sh -a 08_vol_move_show_main.yml -v vars_pndh-sodbackup01_02.yml -p 08_vol_move_show.py
+
+
+
+
+
+(ansible-env)sysadmin@vml-mbahmani:02_vol_move_show$ crontab -l
+# Edit this file to introduce tasks to be run by cron.
+#
+# Each task to run has to be defined through a single line
+# indicating with different fields when the task will be run
+# and what command to run for the task
+#
+# To define the time you can provide concrete values for
+# minute (m), hour (h), day of month (dom), month (mon),
+# and day of week (dow) or use '*' in these fields (for 'any').
+#
+# Notice that tasks will be started based on the cron's system
+# daemon's notion of time and timezones.
+#
+# Output of the crontab jobs (including errors) is sent through
+# email to the user the crontab file belongs to (unless redirected).
+#
+# For example, you can run a backup of all your user accounts
+# at 5 a.m every week with:
+# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+#
+# For more information see the manual pages of crontab(5) and cron(8)
+#
+# m h  dom mon dow   command
+#0 */1 * * * /home/sysadmin/01_lab/01_tools/01_netapp_playbook/base_ansible/./run_ansible_playbook.sh -p 07_Set_volume_tiering_policy.yml -v vars_pndh-sodbackup01.yml
+
+0 */3 * * * cd /home/sysadmin/01_lab/01_tools/01_netapp_OntapOps/01_OntapOps_ansible/02_vol_move_show/ && ./08_vol_move_show.sh -a 08_vol_move_show_main.yml -v vars_pndh-sodbackup01_02.yml -p 08_vol_move_show.py >> /home/sysadmin/cron.log 2>&1
